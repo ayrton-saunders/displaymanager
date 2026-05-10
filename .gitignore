@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Xcode build artifacts
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# User-specific Xcode data
+**/xcuserdata/
+**/*.xcuserdatad/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# CocoaPods (unused but conventional)
+Pods/
+
+# Carthage (unused but conventional)
+Carthage/Build/
+
+# fastlane (unused but conventional)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
