@@ -5,13 +5,70 @@ import AppKit
 class DisplayManager: ObservableObject {
     @Published var currentMode: DisplayMode = .unknown
     private var savedExtendedConfig: [String] = []
-    
+
     enum DisplayMode {
         case mirrored
         case extended
         case unknown
     }
-    
+
+    init() {
+        // Process.waitUntilExit() pumps the run loop. Running it inside
+        // @StateObject construction re-enters SwiftUI's view-graph setup
+        // and trips AttributeGraph cycle warnings. Defer to the next turn.
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshMode()
+        }
+    }
+
+    private func refreshMode() {
+        let possiblePaths = [
+            "/opt/homebrew/bin/displayplacer",
+            "/usr/local/bin/displayplacer",
+            "/usr/bin/displayplacer"
+        ]
+        guard let path = possiblePaths.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
+            return
+        }
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: path)
+        task.arguments = ["list"]
+        let outputPipe = Pipe()
+        task.standardOutput = outputPipe
+        task.standardError = Pipe()
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            return
+        }
+
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: outputData, encoding: .utf8),
+              let cmdLine = output.components(separatedBy: .newlines).first(where: { $0.hasPrefix("displayplacer \"") }) else {
+            return
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: "\"([^\"]+)\"") else { return }
+        let nsString = cmdLine as NSString
+        let matches = regex.matches(in: cmdLine, range: NSRange(location: 0, length: nsString.length))
+        let configs = matches.compactMap { match -> String? in
+            guard match.numberOfRanges > 1 else { return nil }
+            return nsString.substring(with: match.range(at: 1))
+        }
+
+        if configs.count == 1, configs[0].range(of: "id:[A-F0-9-]+\\+", options: .regularExpression) != nil {
+            currentMode = .mirrored
+        } else if configs.count == 2,
+                  !configs[0].contains("+"),
+                  !configs[1].contains("+") {
+            currentMode = .extended
+        }
+        print("DEBUG: Initial mode detected: \(currentMode)")
+    }
+
     func setMirroredMode() {
         executeDisplayplacer(mirror: true)
     }

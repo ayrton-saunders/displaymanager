@@ -35,15 +35,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.worksWhenModal = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.animationBehavior = .utilityWindow
-        
-        // Enable anti-aliasing and smooth rendering
-        if let contentView = panel.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.masksToBounds = false
-            contentView.layer?.allowsEdgeAntialiasing = true
-            contentView.layer?.shouldRasterize = false
-        }
-        
+
         panel.contentView = NSHostingView(rootView: MenuView(closeAction: { [weak self] in
             self?.closeMenu()
         }))
