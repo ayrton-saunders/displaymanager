@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  XCODE_PATH: /Applications/Xcode_26.2.app
+  XCODE_PATH: /Applications/Xcode.app
   SCHEME: DisplayManager
   PROJECT: DisplayManager.xcodeproj
 
