@@ -6,12 +6,6 @@ class DisplayManager: ObservableObject {
     @Published var currentMode: DisplayMode = .unknown
     private var savedExtendedConfig: [String] = []
 
-    enum DisplayMode {
-        case mirrored
-        case extended
-        case unknown
-    }
-
     init() {
         // Process.waitUntilExit() pumps the run loop. Running it inside
         // @StateObject construction re-enters SwiftUI's view-graph setup
@@ -46,26 +40,11 @@ class DisplayManager: ObservableObject {
         }
 
         let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        guard let output = String(data: outputData, encoding: .utf8),
-              let cmdLine = output.components(separatedBy: .newlines).first(where: { $0.hasPrefix("displayplacer \"") }) else {
+        guard let output = String(data: outputData, encoding: .utf8) else {
             return
         }
-
-        guard let regex = try? NSRegularExpression(pattern: "\"([^\"]+)\"") else { return }
-        let nsString = cmdLine as NSString
-        let matches = regex.matches(in: cmdLine, range: NSRange(location: 0, length: nsString.length))
-        let configs = matches.compactMap { match -> String? in
-            guard match.numberOfRanges > 1 else { return nil }
-            return nsString.substring(with: match.range(at: 1))
-        }
-
-        if configs.count == 1, configs[0].range(of: "id:[A-F0-9-]+\\+", options: .regularExpression) != nil {
-            currentMode = .mirrored
-        } else if configs.count == 2,
-                  !configs[0].contains("+"),
-                  !configs[1].contains("+") {
-            currentMode = .extended
-        }
+        let displays = DisplayParser.parseDisplays(output)
+        currentMode = DisplayParser.detectMode(displays)
         print("DEBUG: Initial mode detected: \(currentMode)")
     }
 
@@ -137,50 +116,19 @@ class DisplayManager: ObservableObject {
         print("DEBUG: Full output from displayplacer list:")
         print(output)
         print("DEBUG: End of output")
-        
-        let lines = output.components(separatedBy: .newlines)
-        var commandLine: String?
-        
-        for line in lines {
-            // Look for the line that starts with "displayplacer" and has quotes
-            if line.hasPrefix("displayplacer \"") {
-                print("DEBUG: Found command line: \(line)")
-                commandLine = line
-                break
-            }
+
+        let displays = DisplayParser.parseDisplays(output)
+        for display in displays {
+            print("DEBUG: Found display - ID: \(display.id), Config: \(display.config)")
         }
-        
-        guard let cmdLine = commandLine else {
+        guard !displays.isEmpty else {
             showAlert(message: "Could not parse display configuration. Check Console.app for debug output.")
             return
         }
-        
-        let pattern = "\"([^\"]+)\""
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            showAlert(message: "Failed to parse display configuration")
-            return
-        }
-        
-        let nsString = cmdLine as NSString
-        let results = regex.matches(in: cmdLine, options: [], range: NSRange(location: 0, length: nsString.length))
-        var displayConfigs: [(id: String, config: String)] = []
-        
-        for result in results {
-            if result.numberOfRanges > 1 {
-                let range = result.range(at: 1)
-                let config = nsString.substring(with: range)
-                
-                // Extract the display ID (handle both single IDs and combined IDs with +)
-                if let idRange = config.range(of: "id:([A-F0-9+-]+)", options: .regularExpression) {
-                    let id = config[idRange].replacingOccurrences(of: "id:", with: "")
-                    print("DEBUG: Found display - ID: \(id), Config: \(config)")
-                    displayConfigs.append((id: id, config: config))
-                }
-            }
-        }
-        
+        let displayConfigs: [(id: String, config: String)] = displays.map { ($0.id, $0.config) }
+
         print("DEBUG: Total displays found: \(displayConfigs.count)")
-        
+
         // If already in extended mode (2 separate configs), save them
         if displayConfigs.count == 2 && !displayConfigs[0].id.contains("+") && !displayConfigs[1].id.contains("+") {
             savedExtendedConfig = displayConfigs.map { $0.config }
@@ -316,95 +264,68 @@ class DisplayManager: ObservableObject {
         }
         
         // Otherwise parse the current config and separate the displays
-        let lines = output.components(separatedBy: .newlines)
-        var commandLine: String?
-        
-        for line in lines {
-            // Look for the line that starts with "displayplacer" and has quotes
-            if line.hasPrefix("displayplacer \"") {
-                commandLine = line
-                break
-            }
-        }
-        
-        guard let cmdLine = commandLine else {
+        let displays = DisplayParser.parseDisplays(output)
+        guard !displays.isEmpty else {
             showAlert(message: "Could not parse display configuration")
             return
         }
-        
-        let pattern = "\"([^\"]+)\""
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            showAlert(message: "Failed to parse display configuration")
-            return
-        }
-        
-        let nsString = cmdLine as NSString
-        let results = regex.matches(in: cmdLine, options: [], range: NSRange(location: 0, length: nsString.length))
-        
-        if results.count == 1 {
-            // Currently mirrored - need to split into separate displays
-            if results[0].numberOfRanges > 1 {
-                let range = results[0].range(at: 1)
-                let config = nsString.substring(with: range)
-                
-                // Extract the combined ID
-                if let idRange = config.range(of: "id:([A-F0-9+-]+)", options: .regularExpression) {
-                    let combinedId = config[idRange].replacingOccurrences(of: "id:", with: "")
-                    
-                    // Split the IDs
-                    let ids = combinedId.split(separator: "+").map(String.init)
-                    if ids.count == 2 {
-                        let builtInId = ids[0]
-                        let externalId = ids[1]
-                        
-                        // Get the resolution from the config
-                        let resPattern = "res:(\\d+x\\d+)"
-                        var resolution = "1728x1117"  // Default MacBook resolution
-                        if let resRange = config.range(of: resPattern, options: .regularExpression) {
-                            resolution = String(config[resRange]).replacingOccurrences(of: "res:", with: "")
-                        }
-                        
-                        // Create separate configs for each display
-                        // Built-in display keeps the current resolution
-                        var builtInConfig = config
-                            .replacingOccurrences(of: "id:\(combinedId)", with: "id:\(builtInId)")
-                        builtInConfig += " origin:(0,0) degree:0"
-                        
-                        // External display - use a safe resolution (2560x1440 for Dell S2725QC)
-                        var externalConfig = config
-                            .replacingOccurrences(of: "id:\(combinedId)", with: "id:\(externalId)")
-                        // Replace the resolution with external display's native resolution
-                        externalConfig = externalConfig.replacingOccurrences(of: "res:\(resolution)", with: "res:2560x1440")
-                        externalConfig += " origin:(0,-1440) degree:0"
-                        
-                        print("DEBUG: Built-in config: \(builtInConfig)")
-                        print("DEBUG: External config: \(externalConfig)")
-                        
-                        let extendedTask = Process()
-                        extendedTask.executableURL = URL(fileURLWithPath: displayplacerPath)
-                        extendedTask.arguments = [builtInConfig, externalConfig]
-                        
-                        let errorPipe = Pipe()
-                        extendedTask.standardError = errorPipe
-                        
-                        do {
-                            try extendedTask.run()
-                            extendedTask.waitUntilExit()
-                            
-                            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                            let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
-                            
-                            print("DEBUG: Extended mode exit code: \(extendedTask.terminationStatus)")
-                            print("DEBUG: Extended mode error output: \(errorOutput)")
-                            
-                            // Consider it successful even with warnings
-                            currentMode = .extended
-                        } catch {
-                            showAlert(message: "Error setting extended mode: \(error.localizedDescription)")
-                        }
-                        return
-                    }
+
+        if displays.count == 1 {
+            let config = displays[0].config
+            let combinedId = displays[0].id
+
+            // Split the IDs
+            let ids = combinedId.split(separator: "+").map(String.init)
+            if ids.count == 2 {
+                let builtInId = ids[0]
+                let externalId = ids[1]
+
+                // Get the resolution from the config
+                let resPattern = "res:(\\d+x\\d+)"
+                var resolution = "1728x1117"  // Default MacBook resolution
+                if let resRange = config.range(of: resPattern, options: .regularExpression) {
+                    resolution = String(config[resRange]).replacingOccurrences(of: "res:", with: "")
                 }
+
+                // Create separate configs for each display
+                // Built-in display keeps the current resolution
+                var builtInConfig = config
+                    .replacingOccurrences(of: "id:\(combinedId)", with: "id:\(builtInId)")
+                builtInConfig += " origin:(0,0) degree:0"
+
+                // External display - use a safe resolution (2560x1440 for Dell S2725QC)
+                var externalConfig = config
+                    .replacingOccurrences(of: "id:\(combinedId)", with: "id:\(externalId)")
+                // Replace the resolution with external display's native resolution
+                externalConfig = externalConfig.replacingOccurrences(of: "res:\(resolution)", with: "res:2560x1440")
+                externalConfig += " origin:(0,-1440) degree:0"
+
+                print("DEBUG: Built-in config: \(builtInConfig)")
+                print("DEBUG: External config: \(externalConfig)")
+
+                let extendedTask = Process()
+                extendedTask.executableURL = URL(fileURLWithPath: displayplacerPath)
+                extendedTask.arguments = [builtInConfig, externalConfig]
+
+                let errorPipe = Pipe()
+                extendedTask.standardError = errorPipe
+
+                do {
+                    try extendedTask.run()
+                    extendedTask.waitUntilExit()
+
+                    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                    let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
+
+                    print("DEBUG: Extended mode exit code: \(extendedTask.terminationStatus)")
+                    print("DEBUG: Extended mode error output: \(errorOutput)")
+
+                    // Consider it successful even with warnings
+                    currentMode = .extended
+                } catch {
+                    showAlert(message: "Error setting extended mode: \(error.localizedDescription)")
+                }
+                return
             }
         }
         
