@@ -7,18 +7,45 @@
 	objects = {
 
 /* Begin PBXFileReference section */
+		34B7AEAB2FB1368D00F34F3E /* DisplayManagerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DisplayManagerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		34B7AEBD2FB138FD00F34F3E /* DisplayManager.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = DisplayManager.xctestplan; sourceTree = "<group>"; };
 		34DD3E1A2F2FB4D3009E3319 /* DisplayManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DisplayManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		34B7AEBC2FB1370500F34F3E /* Exceptions for "DisplayManager" folder in "DisplayManagerTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				DisplayParser.swift,
+			);
+			target = 34B7AEAA2FB1368D00F34F3E /* DisplayManagerTests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		34B7AEAC2FB1368D00F34F3E /* DisplayManagerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DisplayManagerTests;
+			sourceTree = "<group>";
+		};
 		34DD3E1C2F2FB4D3009E3319 /* DisplayManager */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				34B7AEBC2FB1370500F34F3E /* Exceptions for "DisplayManager" folder in "DisplayManagerTests" target */,
+			);
 			path = DisplayManager;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		34B7AEA82FB1368D00F34F3E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		34DD3E172F2FB4D3009E3319 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -32,7 +59,9 @@
 		34DD3E112F2FB4D3009E3319 = {
 			isa = PBXGroup;
 			children = (
+				34B7AEBD2FB138FD00F34F3E /* DisplayManager.xctestplan */,
 				34DD3E1C2F2FB4D3009E3319 /* DisplayManager */,
+				34B7AEAC2FB1368D00F34F3E /* DisplayManagerTests */,
 				34DD3E1B2F2FB4D3009E3319 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				34DD3E1A2F2FB4D3009E3319 /* DisplayManager.app */,
+				34B7AEAB2FB1368D00F34F3E /* DisplayManagerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +78,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		34B7AEAA2FB1368D00F34F3E /* DisplayManagerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 34B7AEB12FB1368D00F34F3E /* Build configuration list for PBXNativeTarget "DisplayManagerTests" */;
+			buildPhases = (
+				34B7AEA72FB1368D00F34F3E /* Sources */,
+				34B7AEA82FB1368D00F34F3E /* Frameworks */,
+				34B7AEA92FB1368D00F34F3E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				34B7AEAC2FB1368D00F34F3E /* DisplayManagerTests */,
+			);
+			name = DisplayManagerTests;
+			packageProductDependencies = (
+			);
+			productName = DisplayManagerTests;
+			productReference = 34B7AEAB2FB1368D00F34F3E /* DisplayManagerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		34DD3E192F2FB4D3009E3319 /* DisplayManager */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 34DD3E252F2FB4D3009E3319 /* Build configuration list for PBXNativeTarget "DisplayManager" */;
@@ -77,9 +129,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2610;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					34B7AEAA2FB1368D00F34F3E = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					34DD3E192F2FB4D3009E3319 = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
@@ -100,11 +155,19 @@
 			projectRoot = "";
 			targets = (
 				34DD3E192F2FB4D3009E3319 /* DisplayManager */,
+				34B7AEAA2FB1368D00F34F3E /* DisplayManagerTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		34B7AEA92FB1368D00F34F3E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		34DD3E182F2FB4D3009E3319 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +178,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		34B7AEA72FB1368D00F34F3E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		34DD3E162F2FB4D3009E3319 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -125,6 +195,44 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		34B7AEAF2FB1368D00F34F3E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F49C2S45AS;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ayrton.DisplayManagerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		34B7AEB02FB1368D00F34F3E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F49C2S45AS;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ayrton.DisplayManagerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		34DD3E232F2FB4D3009E3319 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -313,6 +421,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		34B7AEB12FB1368D00F34F3E /* Build configuration list for PBXNativeTarget "DisplayManagerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				34B7AEAF2FB1368D00F34F3E /* Debug */,
+				34B7AEB02FB1368D00F34F3E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		34DD3E152F2FB4D3009E3319 /* Build configuration list for PBXProject "DisplayManager" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
