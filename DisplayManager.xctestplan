@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "9790F1EC-B91A-45D2-863D-F1D5D8988D86",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:DisplayManager.xcodeproj",
+      "identifier" : "34DD3E192F2FB4D3009E3319",
+      "name" : "DisplayManager"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:DisplayManager.xcodeproj",
+        "identifier" : "34B7AEAA2FB1368D00F34F3E",
+        "name" : "DisplayManagerTests"
+      }
+    }
+  ],
+  "version" : 1
+}
