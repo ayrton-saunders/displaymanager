@@ -154,18 +154,7 @@ struct VisualEffectView: NSViewRepresentable {
         view.wantsLayer = true
         view.layer?.cornerRadius = 6
         view.layer?.masksToBounds = true
-        
-        // Add subtle inner shadow for depth
-        if let layer = view.layer {
-            let innerShadow = CALayer()
-            innerShadow.frame = layer.bounds
-            innerShadow.shadowColor = NSColor.black.cgColor
-            innerShadow.shadowOffset = CGSize(width: 0, height: 1)
-            innerShadow.shadowOpacity = 0.05
-            innerShadow.shadowRadius = 1
-            layer.addSublayer(innerShadow)
-        }
-        
+
         return view
     }
     
