@@ -1,0 +1,7 @@
+included:
+  - DisplayManager
+excluded:
+  - DisplayManager/Assets.xcassets
+disabled_rules:
+  - trailing_whitespace
+  - todo
