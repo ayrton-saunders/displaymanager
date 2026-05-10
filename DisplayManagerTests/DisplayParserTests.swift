@@ -16,6 +16,7 @@ final class DisplayParserTests: XCTestCase {
     }
 
     func testParseDisplays_singleDisplay_returnsOneDisplayWithoutPlus() throws {
+        XCTFail("intentional CI smoke-test failure — this PR exists only to prove the test gate rejects broken merges. Do NOT merge.")
         let output = try fixture("single-display")
         let displays = DisplayParser.parseDisplays(output)
         XCTAssertEqual(displays.count, 1)
