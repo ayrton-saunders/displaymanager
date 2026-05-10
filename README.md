@@ -1,5 +1,7 @@
 # Display Manager
 
+[![CI](https://github.com/ayrton-saunders/displaymanager/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ayrton-saunders/displaymanager/actions/workflows/ci.yml)
+
 A macOS menu bar app for quickly switching between mirrored and extended display modes.
 
 ## Features
@@ -11,7 +13,7 @@ A macOS menu bar app for quickly switching between mirrored and extended display
 
 ## Requirements
 
-- macOS 12.0 or later
+- macOS 26.1 (Tahoe) or later
 - `displayplacer` CLI tool
 
 ## Installation
@@ -40,3 +42,15 @@ Tested on:
 - The app runs as a menu bar utility (no dock icon)
 - Requires `displayplacer` to be installed via Homebrew
 - First time setup may require granting display permissions
+
+## Contributing
+
+PRs are welcome. Branch from `main` using one of these prefixes:
+
+- `feat/...` — new features
+- `fix/...` — bug fixes
+- `chore/...` — tooling, deps, repo housekeeping
+- `docs/...` — documentation only
+- `refactor/...` — internal restructuring with no behavior change
+
+All PRs must pass the CI checks (lint, build, test) before merging. Direct pushes to `main` are blocked.
