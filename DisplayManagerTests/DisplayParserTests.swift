@@ -70,4 +70,36 @@ final class DisplayParserTests: XCTestCase {
         let displays = DisplayParser.parseDisplays(try fixture("mirrored-two-displays"))
         XCTAssertEqual(DisplayParser.detectMode(displays), .mirrored)
     }
+
+    // MARK: - extendedConfigArguments (capture for persistence)
+
+    func testExtendedConfigArguments_extendedFixture_returnsBothConfigsVerbatim() throws {
+        let args = DisplayParser.extendedConfigArguments(try fixture("extended-builtin-plus-dell"))
+        XCTAssertEqual(args?.count, 2)
+        // The real external arrangement must be preserved exactly — this is the
+        // arrangement that was being clobbered by the hardcoded fallback.
+        XCTAssertTrue(
+            args?.contains(where: { $0.contains("origin:(-423,-1440)") && $0.contains("res:2560x1440") }) ?? false,
+            "External display config must preserve its real origin (-423,-1440) and resolution"
+        )
+        XCTAssertTrue(
+            args?.contains(where: { $0.contains("origin:(0,0)") }) ?? false,
+            "Built-in display config must be captured"
+        )
+    }
+
+    func testExtendedConfigArguments_mirroredFixture_returnsNil() throws {
+        // A mirrored snapshot does not contain the real extended layout, so there
+        // is nothing safe to capture — must not fabricate one.
+        XCTAssertNil(DisplayParser.extendedConfigArguments(try fixture("mirrored-two-displays")))
+    }
+
+    func testExtendedConfigArguments_singleDisplay_returnsNil() throws {
+        XCTAssertNil(DisplayParser.extendedConfigArguments(try fixture("single-display")))
+    }
+
+    func testExtendedConfigArguments_garbageInput_returnsNil() {
+        XCTAssertNil(DisplayParser.extendedConfigArguments(""))
+        XCTAssertNil(DisplayParser.extendedConfigArguments("nonsense"))
+    }
 }

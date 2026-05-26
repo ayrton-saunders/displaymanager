@@ -40,6 +40,18 @@ enum DisplayParser {
         }
     }
 
+    /// Returns the per-display `displayplacer` argument strings for an *extended*
+    /// arrangement, suitable for persisting and replaying verbatim to restore it.
+    ///
+    /// Returns `nil` when the output is not an extended layout (mirrored, single
+    /// display, or unparseable) — a mirrored snapshot does not contain the real
+    /// extended positions, so there is nothing safe to capture.
+    static func extendedConfigArguments(_ output: String) -> [String]? {
+        let displays = parseDisplays(output)
+        guard detectMode(displays) == .extended else { return nil }
+        return displays.map { $0.config }
+    }
+
     /// Mirrored = one config whose id contains "+".
     /// Extended = two configs, neither containing "+".
     /// Anything else = unknown.
