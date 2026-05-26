@@ -37,3 +37,6 @@ fastlane/test_output
 .vscode/
 *.swp
 *.swo
+
+# Claude Code — personal/local settings (shared settings.json is committed)
+.claude/settings.local.json

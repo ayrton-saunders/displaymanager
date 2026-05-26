@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(displayplacer list *)",
+      "Bash(/opt/homebrew/bin/displayplacer list *)",
+      "Bash(/usr/local/bin/displayplacer list *)",
+      "Bash(displayplacer --version)",
+      "Bash(/opt/homebrew/bin/displayplacer --version)",
+      "Bash(/usr/local/bin/displayplacer --version)",
+      "Bash(/usr/bin/displayplacer --version)",
+      "Bash(xcodebuild -version)",
+      "Bash(xcodebuild *)",
+      "Bash(log show *)",
+      "Bash(/usr/bin/log show *)",
+      "Bash(ps *)",
+      "Bash(pkill -x DisplayManager)",
+      "Bash(codesign -dv *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr list *)",
+      "Bash(gh repo view *)"
+    ]
+  }
+}
