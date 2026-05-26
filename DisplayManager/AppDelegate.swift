@@ -1,104 +1,75 @@
 import Cocoa
-import SwiftUI
 
-class AppDelegate: NSObject, NSApplicationDelegate {
-    var statusItem: NSStatusItem?
-    var menuWindow: NSWindow?
-    var eventMonitor: Any?
-    
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    private var statusItem: NSStatusItem?
+    private let displayManager = DisplayManager()
+
+    private let menuWidth: CGFloat = 240
+    private var mirroredRow: MenuRowItemView?
+    private var extendedRow: MenuRowItemView?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "rectangle.2.swap", accessibilityDescription: "Display Manager")
-            button.action = #selector(toggleMenu)
-            button.sendAction(on: [.leftMouseDown])
-        }
-        
-        setupMenuWindow()
-    }
-    
-    func setupMenuWindow() {
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 200, height: 165),
-            styleMask: [.nonactivatingPanel, .borderless],
-            backing: .buffered,
-            defer: false
+        statusItem?.button?.image = NSImage(
+            systemSymbolName: "rectangle.2.swap",
+            accessibilityDescription: "Display Manager"
         )
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.level = .screenSaver
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.isMovableByWindowBackground = false
-        panel.hasShadow = false
-        panel.hidesOnDeactivate = false
-        panel.worksWhenModal = true
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.animationBehavior = .utilityWindow
 
-        panel.contentView = NSHostingView(rootView: MenuView(closeAction: { [weak self] in
-            self?.closeMenu()
-        }))
-        menuWindow = panel
-        
-        // Monitor for screenshot activity and temporarily hide window
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // Cmd+Shift+3, Cmd+Shift+4, Cmd+Shift+5 (screenshot shortcuts)
-            if event.modifierFlags.contains([.command, .shift]) {
-                let keyCode = event.keyCode
-                if keyCode == 20 || keyCode == 21 || keyCode == 23 { // 3, 4, 5 keys
-                    self?.closeMenu()
-                }
-            }
-            return event
+        // A real NSMenu is tracked by the system, so it pins the menu bar in full
+        // screen, dismisses instantly on Mission Control / Space changes / outside
+        // clicks, and renders with native Liquid Glass. Each row's NSMenuItem.view
+        // hosts custom SwiftUI (see MenuRow.swift) so we keep the Control-Center
+        // look on top of that native behavior.
+        let menu = NSMenu()
+        menu.delegate = self
+        menu.autoenablesItems = false
+
+        menu.addItem(.sectionHeader(title: "Display"))
+
+        mirroredRow = addRow(to: menu, icon: "rectangle.on.rectangle", title: "Mirrored Mode") { [weak self] in
+            self?.displayManager.setMirroredMode()
         }
+        extendedRow = addRow(to: menu, icon: "rectangle.split.2x1", title: "Extended Mode") { [weak self] in
+            self?.displayManager.setExtendedMode()
+        }
+
+        menu.addItem(.separator())
+
+        addRow(to: menu, icon: "power", title: "Quit") {
+            NSApplication.shared.terminate(nil)
+        }
+
+        statusItem?.menu = menu
     }
-    
-    @objc func toggleMenu() {
-        guard let button = statusItem?.button, let window = menuWindow else { return }
-        
-        if window.isVisible {
-            closeMenu()
-        } else {
-            openMenu()
+
+    @discardableResult
+    private func addRow(
+        to menu: NSMenu,
+        icon: String,
+        title: String,
+        onSelect: @escaping () -> Void
+    ) -> MenuRowItemView {
+        let row = MenuRowItemView(icon: icon, title: title, width: menuWidth) {
+            // Let the menu finish dismissing before work that may block or alert.
+            DispatchQueue.main.async(execute: onSelect)
         }
+        let item = NSMenuItem()
+        item.view = row
+        menu.addItem(item)
+        return row
     }
-    
-    func openMenu() {
-        guard let button = statusItem?.button, let window = menuWindow else { return }
-        
-        // Highlight the button
-        button.highlight(true)
-        
-        // Position window below menu bar button
-        let buttonFrame = button.window?.convertToScreen(button.frame) ?? .zero
-        let windowX = buttonFrame.origin.x - (window.frame.width / 2) + (buttonFrame.width / 2)
-        let windowY = buttonFrame.origin.y - window.frame.height - 2
-        
-        window.setFrameOrigin(NSPoint(x: windowX, y: windowY))
-        
-        // Force the window to the absolute highest level
-        window.level = .screenSaver
-        window.orderFrontRegardless()
-        
-        // Start monitoring clicks outside the menu
-        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.closeMenu()
-        }
-    }
-    
-    func closeMenu() {
-        guard let button = statusItem?.button, let window = menuWindow else { return }
-        
-        // Unhighlight the button
-        button.highlight(false)
-        
-        window.orderOut(nil)
-        
-        // Stop monitoring clicks
-        if let monitor = eventMonitor {
-            NSEvent.removeMonitor(monitor)
-            eventMonitor = nil
-        }
+
+    // Reflect the live display mode each time the menu opens: mark the active
+    // mode, and disable both when no two-display arrangement is recognized
+    // (single display, or an unhandled >2-display setup).
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let mode = displayManager.currentMode
+        let canSwitch = (mode != .unknown)
+
+        mirroredRow?.isSelected = (mode == .mirrored)
+        mirroredRow?.isRowEnabled = canSwitch
+
+        extendedRow?.isSelected = (mode == .extended)
+        extendedRow?.isRowEnabled = canSwitch
     }
 }
