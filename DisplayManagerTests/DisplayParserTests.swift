@@ -70,4 +70,80 @@ final class DisplayParserTests: XCTestCase {
         let displays = DisplayParser.parseDisplays(try fixture("mirrored-two-displays"))
         XCTAssertEqual(DisplayParser.detectMode(displays), .mirrored)
     }
+
+    // MARK: - extendedConfigArguments (capture for persistence)
+
+    func testExtendedConfigArguments_extendedFixture_returnsBothConfigsVerbatim() throws {
+        let args = DisplayParser.extendedConfigArguments(try fixture("extended-builtin-plus-dell"))
+        XCTAssertEqual(args?.count, 2)
+        // The real external arrangement must be preserved exactly — this is the
+        // arrangement that was being clobbered by the hardcoded fallback.
+        XCTAssertTrue(
+            args?.contains(where: { $0.contains("origin:(-423,-1440)") && $0.contains("res:2560x1440") }) ?? false,
+            "External display config must preserve its real origin (-423,-1440) and resolution"
+        )
+        XCTAssertTrue(
+            args?.contains(where: { $0.contains("origin:(0,0)") }) ?? false,
+            "Built-in display config must be captured"
+        )
+    }
+
+    func testExtendedConfigArguments_mirroredFixture_returnsNil() throws {
+        // A mirrored snapshot does not contain the real extended layout, so there
+        // is nothing safe to capture — must not fabricate one.
+        XCTAssertNil(DisplayParser.extendedConfigArguments(try fixture("mirrored-two-displays")))
+    }
+
+    func testExtendedConfigArguments_singleDisplay_returnsNil() throws {
+        XCTAssertNil(DisplayParser.extendedConfigArguments(try fixture("single-display")))
+    }
+
+    func testExtendedConfigArguments_garbageInput_returnsNil() {
+        XCTAssertNil(DisplayParser.extendedConfigArguments(""))
+        XCTAssertNil(DisplayParser.extendedConfigArguments("nonsense"))
+    }
+
+    // MARK: - connectedDisplayIDs
+
+    private let builtInID = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+    private let dellID = "5D33ABED-7F2F-45F6-BECD-EDD7869FBD0B"
+
+    func testConnectedDisplayIDs_extended_returnsBothHardwareIDs() throws {
+        let ids = DisplayParser.connectedDisplayIDs(try fixture("extended-builtin-plus-dell"))
+        XCTAssertEqual(ids, [builtInID, dellID])
+    }
+
+    func testConnectedDisplayIDs_mirrored_expandsCombinedID() throws {
+        // A mirrored snapshot reports one "A+B" id — both hardware IDs must be recovered.
+        let ids = DisplayParser.connectedDisplayIDs(try fixture("mirrored-two-displays"))
+        XCTAssertEqual(ids, [builtInID, dellID])
+    }
+
+    func testConnectedDisplayIDs_singleDisplay_returnsOne() throws {
+        let ids = DisplayParser.connectedDisplayIDs(try fixture("single-display"))
+        XCTAssertEqual(ids.count, 1)
+    }
+
+    func testConnectedDisplayIDs_garbage_returnsEmpty() {
+        XCTAssertTrue(DisplayParser.connectedDisplayIDs("nonsense").isEmpty)
+    }
+
+    // MARK: - savedConfigIsRestorable (stale-config guard)
+
+    func testSavedConfigIsRestorable_sameDisplaysConnected_isTrue() throws {
+        let saved = try XCTUnwrap(DisplayParser.extendedConfigArguments(try fixture("extended-builtin-plus-dell")))
+        // The same two monitors are present, now mirrored — restoring is safe.
+        XCTAssertTrue(DisplayParser.savedConfigIsRestorable(saved, against: try fixture("mirrored-two-displays")))
+    }
+
+    func testSavedConfigIsRestorable_externalDisconnected_isFalse() throws {
+        let saved = try XCTUnwrap(DisplayParser.extendedConfigArguments(try fixture("extended-builtin-plus-dell")))
+        // Only the built-in remains — the saved external is gone, so replaying its
+        // stale ID would fail. Must not attempt it.
+        XCTAssertFalse(DisplayParser.savedConfigIsRestorable(saved, against: try fixture("single-display")))
+    }
+
+    func testSavedConfigIsRestorable_emptySaved_isFalse() throws {
+        XCTAssertFalse(DisplayParser.savedConfigIsRestorable([], against: try fixture("extended-builtin-plus-dell")))
+    }
 }
