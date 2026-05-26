@@ -4,16 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and run
 
-This is an Xcode project — there is no SwiftPM manifest, no test target, and no lint config. Build via Xcode or:
+This is an Xcode project — there is no SwiftPM manifest. Build, test, and lint via Xcode or:
 
 ```bash
 # Build (Debug)
 xcodebuild -project DisplayManager.xcodeproj -scheme DisplayManager -configuration Debug build
 
+# Run the unit tests (DisplayManagerTests — pure DisplayParser logic, no UI)
+xcodebuild test -project DisplayManager.xcodeproj -scheme DisplayManager -destination 'platform=macOS'
+
+# Lint (config in .swiftlint.yml; install with `brew install swiftlint`)
+swiftlint
+
 # Build and run the app from Xcode (⌘R) — the app must be launched from a signed location.
 # Running the binary out of DerivedData directly may fail because the menu-bar UI relies on
 # Accessibility/Screen Recording permissions tied to the bundle path.
 ```
+
+There is a `DisplayManagerTests` target (`DisplayManager.xctestplan`) covering the pure parsing/mode-detection helpers in `DisplayParser.swift`; the UI layer is not unit-tested. CI runs build, test, and lint.
 
 Runtime dependency: `displayplacer` must be installed (`brew install displayplacer`). The app probes `/opt/homebrew/bin`, `/usr/local/bin`, then `/usr/bin` — there is no PATH lookup, so non-standard install locations are not supported.
 
@@ -21,11 +29,13 @@ Deployment target is **macOS 26.1** (Tahoe), Swift 5.0, default-actor-isolation 
 
 ## Architecture
 
-Three Swift files do the entire job (all under `DisplayManager/`):
+A handful of small Swift files do the entire job (all under `DisplayManager/`):
 
 - **`DisplayManagerApp.swift`** — `@main` SwiftUI entry. Body is a `Settings { EmptyView() }` because this is a menu-bar-only app (`LSUIElement = true` in `Info.plist`); the real lifecycle is in `AppDelegate` via `@NSApplicationDelegateAdaptor`.
-- **`AppDelegate.swift`** — owns the `NSStatusItem` and a borderless `NSPanel` that hosts the SwiftUI menu. The panel is **not** an `NSPopover`; it is positioned manually under the status item, set to `.screenSaver` window level so it floats above full-screen apps, and dismissed by a global mouse-down monitor plus a local key-down monitor that closes the menu when the user presses ⌘⇧3/4/5 (screenshot shortcuts).
+- **`AppDelegate.swift`** — owns the `NSStatusItem` and builds a real `NSMenu` (`statusItem.menu`). Because the menu is system-tracked, it pins the menu bar in full screen, dismisses on Mission Control / Space changes / outside clicks, and renders with native Liquid Glass — all for free, with **no** manual event monitors or window-level juggling (an earlier version used a borderless `NSPanel` and hand-rolled all of that). Each row is an `NSMenuItem` whose `.view` hosts custom SwiftUI from `MenuRow.swift`; `menuNeedsUpdate` syncs the active-mode marker and enabled state on each open (mode rows disable when no two-display arrangement is recognized).
+- **`MenuRow.swift`** — `DisplayMenuRow`, the stateless SwiftUI rendering of one Control-Center-style row (icon tile + title + hover highlight), and `MenuRowItemView`, the `NSView` that hosts it. The `NSView` owns hover-tracking and click handling because `NSMenu` does **not** highlight custom-view items or forward clicks to embedded SwiftUI controls during its tracking loop; `mouseUp` activates the row and dismisses via `cancelTracking()`.
 - **`DisplayManager.swift`** — `ObservableObject` that shells out to `displayplacer` via `Process` and parses its `list` output with regex.
+- **`DisplayParser.swift`** — pure (stateless) parsing and mode-detection helpers, extracted so they can be unit-tested without launching `displayplacer`.
 
 The displayplacer interaction is the only non-trivial logic. Two things to be aware of before editing it:
 
@@ -37,5 +47,4 @@ Errors surface as `NSAlert` modals from `showAlert(_:)`. Verbose `print(...)` de
 ## Project file gotchas
 
 - **Sources build phase is intentionally empty.** The Xcode project uses `PBXFileSystemSynchronizedRootGroup` (`fileSystemSynchronizedGroups = (DisplayManager)`). Every `.swift` file under `DisplayManager/` is auto-included in the target — do not add `PBXBuildFile` entries by hand, just drop the file in the folder.
-- **The repo root contains stale duplicate Swift files.** `AppDelegate.swift`, `DisplayManager.swift`, `DisplayManagerApp.swift`, and `MenuView.swift` exist at the top level *and* under `DisplayManager/`. Only the ones under `DisplayManager/` are compiled. The root copies are an older draft (popover-based menu, `which`-based displayplacer lookup) and should not be edited — edit the `DisplayManager/` versions, or delete the root duplicates if you want to clean up.
 - **App sandbox is disabled** (`com.apple.security.app-sandbox = false` in `DisplayManager.entitlements`) and must stay disabled — `Process()` cannot launch `displayplacer` from inside the sandbox. Hardened runtime is on.
