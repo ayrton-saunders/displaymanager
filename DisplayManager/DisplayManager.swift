@@ -31,6 +31,17 @@ class DisplayManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.refreshMode()
         }
+
+        // Re-poll whenever the display arrangement changes while the app is
+        // running, so a layout the user sets up in System Settings is captured
+        // automatically (refreshMode persists any extended config it sees).
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshMode()
+        }
     }
 
     private func refreshMode() {
@@ -252,34 +263,43 @@ class DisplayManager: ObservableObject {
     }
     
     private func parseExtendedCommand(from output: String, displayplacerPath: String) {
-        // If we have saved extended config, use it
-        if !savedExtendedConfig.isEmpty {
+        // Replay the saved arrangement, but only if every display it references is
+        // still connected. After a monitor swap the saved IDs are stale and
+        // replaying them would silently fail — fall through to the alert instead.
+        // We validate against the `output` we already fetched (no extra list call).
+        if DisplayParser.savedConfigIsRestorable(savedExtendedConfig, against: output) {
             print("DEBUG: Using saved extended configuration")
             let extendedTask = Process()
             extendedTask.executableURL = URL(fileURLWithPath: displayplacerPath)
             extendedTask.arguments = savedExtendedConfig
-            
+
             let errorPipe = Pipe()
             extendedTask.standardError = errorPipe
-            
+
             do {
                 try extendedTask.run()
                 extendedTask.waitUntilExit()
-                
+
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
-                
+
                 print("DEBUG: Extended mode exit code: \(extendedTask.terminationStatus)")
                 print("DEBUG: Extended mode error output: \(errorOutput)")
-                
-                // Consider it successful even with warnings (exit code may not be 0)
-                currentMode = .extended
+
+                if extendedTask.terminationStatus == 0 {
+                    currentMode = .extended
+                } else {
+                    let detail = errorOutput.isEmpty
+                        ? "displayplacer exited with status \(extendedTask.terminationStatus)"
+                        : errorOutput
+                    showAlert(message: "Failed to restore extended mode: \(detail)")
+                }
             } catch {
                 showAlert(message: "Error setting extended mode: \(error.localizedDescription)")
             }
             return
         }
-        
+
         // No saved arrangement. A mirrored snapshot does not contain the real
         // extended positions, so we cannot reconstruct them without guessing —
         // and guessing (the old hardcoded origin) is exactly what moved the
