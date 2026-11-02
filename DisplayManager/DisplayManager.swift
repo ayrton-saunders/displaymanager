@@ -93,15 +93,7 @@ class DisplayManager: ObservableObject {
             "/usr/bin/displayplacer"
         ]
         
-        var displayplacerPath: String?
-        for path in possiblePaths {
-            if FileManager.default.fileExists(atPath: path) {
-                displayplacerPath = path
-                break
-            }
-        }
-        
-        guard let path = displayplacerPath else {
+        guard let path = possiblePaths.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
             showAlert(message: "displayplacer not found. Please install it using: brew install displayplacer")
             return
         }
@@ -147,66 +139,23 @@ class DisplayManager: ObservableObject {
         print(output)
         print("DEBUG: End of output")
 
-        let displays = DisplayParser.parseDisplays(output)
-        for display in displays {
-            print("DEBUG: Found display - ID: \(display.id), Config: \(display.config)")
-        }
-        guard !displays.isEmpty else {
-            showAlert(message: "Could not parse display configuration. Check Console.app for debug output.")
-            return
-        }
-        let displayConfigs: [(id: String, config: String)] = displays.map { ($0.id, $0.config) }
-
-        print("DEBUG: Total displays found: \(displayConfigs.count)")
-
-        // If we're mirroring from an extended layout, capture it first so we can
-        // restore the exact arrangement when the user un-mirrors.
+        // Capture before changing the primary/source so Extended can restore the
+        // exact desk layout, including which display was primary and its scaling.
         captureExtendedConfigIfPresent(output)
 
-        // For mirroring, we need the individual display IDs
-        // If currently mirrored, we need to extract them from the combined ID
-        var builtInId: String = ""
-        var externalId: String = ""
-        var builtInConfig: String = ""
-        
-        if displayConfigs.count == 1 && displayConfigs[0].id.contains("+") {
-            // Currently mirrored - extract individual IDs
-            let ids = displayConfigs[0].id.split(separator: "+").map(String.init)
-            if ids.count == 2 {
-                builtInId = ids[0]
-                externalId = ids[1]
-                // Use the mirrored config as base
-                builtInConfig = displayConfigs[0].config
-                    .replacingOccurrences(of: "id:\(displayConfigs[0].id)", with: "id:\(builtInId)")
-            }
-        } else if displayConfigs.count >= 2 {
-            // Currently extended - identify which is which
-            for display in displayConfigs {
-                if display.config.contains("origin:(0,0)") {
-                    builtInId = display.id
-                    builtInConfig = display.config
-                } else {
-                    externalId = display.id
-                }
-            }
-        }
-        
-        guard !builtInId.isEmpty && !externalId.isEmpty else {
-            showAlert(message: "Could not identify display IDs")
+        guard let mirrorConfig = DisplayParser.mirrorConfigArgument(
+            output, savedExtendedConfig: savedExtendedConfig
+        ) else {
+            showAlert(message: """
+            Could not determine the built-in display's extended resolution and scaling.
+
+            Connect one external display and open the laptop. In System Settings ▸ Displays, \
+            set up extended mode with your preferred laptop scaling and the external display \
+            as Main Display once. Then try Mirrored again; Display Manager will remember \
+            that exact extended arrangement.
+            """)
             return
         }
-        
-        // For mirroring, the built-in display should be the main display
-        // External display mirrors the built-in display
-        let mirrorId = "\(builtInId)+\(externalId)"
-        var mirrorConfig = builtInConfig
-        
-        // Replace the built-in display's ID with the combined mirror ID
-        mirrorConfig = mirrorConfig.replacingOccurrences(of: "id:\(builtInId)", with: "id:\(mirrorId)")
-        
-        // Remove origin and degree for mirroring (not needed)
-        mirrorConfig = mirrorConfig.replacingOccurrences(of: #"origin:\([^)]+\)\s*"#, with: "", options: .regularExpression)
-        mirrorConfig = mirrorConfig.replacingOccurrences(of: #"degree:\d+\s*"#, with: "", options: .regularExpression)
         
         print("DEBUG: Mirror config: \(mirrorConfig)")
         

@@ -31,6 +31,21 @@ A macOS menu bar app for quickly switching between mirrored and extended display
 2. Select either "Mirrored Mode" or "Extended Mode"
 3. The display configuration will be applied automatically
 
+With the laptop open and one external display connected:
+
+- **Mirrored Mode** makes the built-in display the primary screen and mirror source,
+  using its extended-mode resolution and scaling rather than the external screen's.
+- **Extended Mode** restores the last observed extended arrangement exactly,
+  including the primary display, positions, resolution, scaling and refresh rate.
+
+For desk/Xbox use, first set up extended mode in System Settings > Displays with
+the Dell as Main Display and your preferred laptop scaling while Display Manager
+is running. The app remembers that layout before mirroring. Keep USB-C connected
+when switching the Dell's input to Xbox. Returning to Extended Mode restores the
+Dell-primary desk layout. If the app starts already mirrored without a saved
+layout, or a different monitor is connected, establish extended mode once rather
+than having the app guess a resolution or arrangement.
+
 ## Hardware
 
 Tested on:
