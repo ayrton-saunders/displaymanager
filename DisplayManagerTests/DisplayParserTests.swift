@@ -103,6 +103,110 @@ final class DisplayParserTests: XCTestCase {
         XCTAssertNil(DisplayParser.extendedConfigArguments("nonsense"))
     }
 
+    // MARK: - laptop-optimized mirroring
+
+    private var expectedLaptopMirror: String {
+        "id:\(builtInID)+\(dellID) res:1728x1117 hz:120 color_depth:8 scaling:on enabled:true origin:(0,0) degree:0"
+    }
+
+    func testMirrorConfig_dellPrimary_usesHardwareRoleAndLaptopScaling() throws {
+        let output = try fixture("extended-dell-primary")
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: []), expectedLaptopMirror)
+    }
+
+    func testMirrorConfig_builtinPrimary_preservesExistingBehavior() throws {
+        let output = try fixture("extended-builtin-plus-dell")
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: []), expectedLaptopMirror)
+    }
+
+    func testMirrorConfig_doesNotHardcodeLaptopResolutionOrScaling() throws {
+        let output = try fixture("extended-dell-primary")
+            .replacingOccurrences(of: "res:1728x1117", with: "res:1496x967")
+            .replacingOccurrences(of: "scaling:on", with: "scaling:off")
+        let expected = expectedLaptopMirror
+            .replacingOccurrences(of: "res:1728x1117", with: "res:1496x967")
+            .replacingOccurrences(of: "scaling:on", with: "scaling:off")
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: []), expected)
+    }
+
+    func testMirrorConfig_dellSourceMirror_usesSavedLaptopGeometryNotCurrentMirror() throws {
+        let saved = try XCTUnwrap(DisplayParser.extendedConfigArguments(try fixture("extended-dell-primary")))
+        let output = try fixture("mirrored-dell-source")
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: saved), expectedLaptopMirror)
+    }
+
+    func testMirrorConfig_repeatedMirror_usesSavedLaptopGeometry() throws {
+        let saved = try XCTUnwrap(DisplayParser.extendedConfigArguments(try fixture("extended-dell-primary")))
+        let output = try fixture("mirrored-two-displays")
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: saved), expectedLaptopMirror)
+    }
+
+    func testMirrorConfig_mirroredWithoutSnapshot_doesNotGuessLaptopGeometry() throws {
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(try fixture("mirrored-dell-source"), savedExtendedConfig: []))
+    }
+
+    func testMirrorConfig_staleOrInvalidSnapshot_doesNotReuseIt() throws {
+        let saved = try XCTUnwrap(DisplayParser.extendedConfigArguments(try fixture("extended-dell-primary")))
+        let output = try fixture("mirrored-dell-source")
+        let stale = saved.map { $0.replacingOccurrences(of: dellID, with: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE") }
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: stale))
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: [saved[0]]))
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: saved + ["garbage"]))
+    }
+
+    func testMirrorConfig_freshHardwareIDsAndChangedContextualIDs_areDiscoveredByRole() throws {
+        let output = try fixture("extended-dell-primary")
+            .replacingOccurrences(of: builtInID, with: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+            .replacingOccurrences(of: dellID, with: "11111111-2222-3333-4444-555555555555")
+        let expected = expectedLaptopMirror
+            .replacingOccurrences(of: builtInID, with: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+            .replacingOccurrences(of: dellID, with: "11111111-2222-3333-4444-555555555555")
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(output, savedExtendedConfig: []), expected)
+    }
+
+    func testMirrorConfig_missingOrAmbiguousHardwareRole_doesNotGuessFromOrigin() throws {
+        let output = try fixture("extended-dell-primary")
+        for type in ["unknown screen", "27 inch external screen"] {
+            let missingRole = output.replacingOccurrences(of: "MacBook built in screen", with: type)
+            XCTAssertNil(DisplayParser.mirrorConfigArgument(missingRole, savedExtendedConfig: []))
+        }
+        let ambiguous = output.replacingOccurrences(of: "27 inch external screen", with: "MacBook built in screen")
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(ambiguous, savedExtendedConfig: []))
+    }
+
+    func testMirrorConfig_missingLaptopScalingOrDisabledLaptop_doesNotGuess() throws {
+        let output = try fixture("extended-dell-primary")
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(
+            output.replacingOccurrences(of: "scaling:on", with: ""), savedExtendedConfig: []
+        ))
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(
+            output.replacingOccurrences(of: "enabled:true", with: "enabled:false"), savedExtendedConfig: []
+        ))
+    }
+
+    func testMirrorConfig_unsupportedArrangements_returnNil() throws {
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(try fixture("single-display"), savedExtendedConfig: []))
+        let threeDisplays = try fixture("extended-dell-primary").trimmingCharacters(in: .whitespacesAndNewlines)
+            + " \"id:AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE res:1920x1080 scaling:on origin:(-1920,0) degree:0\""
+        XCTAssertNil(DisplayParser.mirrorConfigArgument(threeDisplays, savedExtendedConfig: []))
+        XCTAssertNil(DisplayParser.mirrorConfigArgument("nonsense", savedExtendedConfig: []))
+    }
+
+    func testExtendedConfigArguments_dellPrimary_roundTripPreservesExactDeskArrangement() throws {
+        let output = try fixture("extended-dell-primary")
+        let expected = DisplayParser.parseDisplays(output).map { $0.config }
+        let saved = try XCTUnwrap(DisplayParser.extendedConfigArguments(output))
+        XCTAssertEqual(saved, expected)
+        XCTAssertTrue(saved[0].contains("id:\(dellID) res:2560x1440"))
+        XCTAssertTrue(saved[0].contains("origin:(0,0)"))
+        XCTAssertTrue(saved[1].contains("origin:(423,1440)"))
+        let mirrored = try fixture("mirrored-dell-source")
+        XCTAssertNil(DisplayParser.extendedConfigArguments(mirrored), "Mirroring must not overwrite the desk snapshot")
+        XCTAssertTrue(DisplayParser.savedConfigIsRestorable(saved, against: mirrored))
+        XCTAssertEqual(DisplayParser.mirrorConfigArgument(mirrored, savedExtendedConfig: saved), expectedLaptopMirror)
+        XCTAssertEqual(saved, expected, "Mirror planning must not modify the saved primary, positions or scaling")
+    }
+
     // MARK: - connectedDisplayIDs
 
     private let builtInID = "37D8832A-2D66-02CA-B9F7-8F30A301B230"

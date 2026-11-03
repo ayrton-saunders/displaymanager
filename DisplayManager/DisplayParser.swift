@@ -81,6 +81,56 @@ enum DisplayParser {
         return savedIDs.isSubset(of: connectedDisplayIDs(output))
     }
 
+    /// Build a laptop-optimized mirror command, independently of which screen is
+    /// primary. displayplacer's first mirror ID selects "Optimize for"; origin
+    /// (0,0) selects the primary screen. Neither tells us the hardware role.
+    ///
+    /// An existing mirror can report the external screen's geometry for both
+    /// displays. In that case only a saved extended snapshot provides a trusted
+    /// laptop resolution and scaling. Do not copy the current mirror's settings.
+    static func mirrorConfigArgument(_ output: String, savedExtendedConfig: [String]) -> String? {
+        let displays = parseDisplays(output)
+        let mode = detectMode(displays)
+        let connectedIDs = connectedDisplayIDs(output)
+        guard mode != .unknown, connectedIDs.count == 2 else { return nil }
+
+        let sections = output.components(separatedBy: "Persistent screen id: ").dropFirst()
+        let builtInIDs = sections.compactMap { section -> String? in
+            let lines = section.components(separatedBy: .newlines)
+            guard let id = lines.first,
+                  lines.contains(where: { $0.hasPrefix("Type:") && $0.contains("built in screen") }),
+                  connectedIDs.contains(id) else { return nil }
+            return id
+        }
+        guard builtInIDs.count == 1, let builtInID = builtInIDs.first,
+              let externalID = connectedIDs.first(where: { $0 != builtInID }) else { return nil }
+
+        let extendedConfigs: [String]
+        if mode == .extended {
+            extendedConfigs = displays.map { $0.config }
+        } else {
+            let savedDisplays = savedExtendedConfig.compactMap { config -> DisplayInfo? in
+                guard let id = displayID(in: config) else { return nil }
+                return DisplayInfo(id: id, config: config)
+            }
+            guard savedDisplays.count == savedExtendedConfig.count,
+                  detectMode(savedDisplays) == .extended,
+                  Set(savedDisplays.map { $0.id }) == connectedIDs else { return nil }
+            extendedConfigs = savedExtendedConfig
+        }
+        guard let laptopConfig = extendedConfigs.first(where: { displayID(in: $0) == builtInID }),
+              !laptopConfig.contains("enabled:false") else { return nil }
+
+        // Copy resolution, HiDPI scaling, refresh rate and color depth from the
+        // laptop's extended config, not the Dell's rendering/panel resolution.
+        let settings = laptopConfig.split(separator: " ").filter { token in
+            ["res:", "scaling:", "hz:", "color_depth:"].contains { token.hasPrefix($0) }
+        }
+        guard settings.contains(where: { $0.hasPrefix("res:") }),
+              settings.contains(where: { $0.hasPrefix("scaling:") }) else { return nil }
+        return "id:\(builtInID)+\(externalID) \(settings.joined(separator: " ")) enabled:true origin:(0,0) degree:0"
+    }
+
     /// Mirrored = one config whose id contains "+".
     /// Extended = two configs, neither containing "+".
     /// Anything else = unknown.
