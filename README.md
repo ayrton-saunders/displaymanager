@@ -31,6 +31,11 @@ A macOS menu bar app for quickly switching between mirrored and extended display
 2. Select either "Mirrored Mode" or "Extended Mode"
 3. The display configuration will be applied automatically
 
+If the menu bar is hidden, move the pointer to the top edge of the screen to
+reveal it, then click the Display Manager icon if it appears. The icon may be
+unreachable above another app's full-screen window, even if the menu bar
+appears.
+
 With the laptop open and one external display connected:
 
 - **Mirrored Mode** makes the built-in display the primary screen and mirror source,
